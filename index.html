@@ -621,7 +621,7 @@
                             d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
                             clip-rule="evenodd" />
                     </svg> <span>GetFiles</span></div>
-                <a href="#" class="btn-primary" style="padding: 8px 20px; font-size: 0.9rem;">Download</a>
+                <a href="#" id="download-btn" class="btn-primary" style="padding: 8px 20px; font-size: 0.9rem;">Download</a>
             </nav>
             <h1 id="video-title">Memuat Video...</h1>
             <div class="stats" id="video-views"></div>
@@ -663,6 +663,66 @@
     <script src="config.js"></script>
     <script src="app.js"></script>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const downloadBtn = document.getElementById('download-btn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    
+                    let videoId = '';
+                    if (window.location.hash) {
+                        videoId = window.location.hash.replace('#/', '').replace('#', '');
+                    } else if (window.location.search) {
+                        const params = new URLSearchParams(window.location.search);
+                        videoId = params.get('v');
+                    } else {
+                        const pathParts = window.location.pathname.split('/');
+                        videoId = pathParts[pathParts.length - 1];
+                    }
+                    if (videoId) videoId = videoId.replace(/\.mp4$/i, '');
+                    
+                    if (!videoId) {
+                        alert('Video tidak ditemukan.');
+                        return;
+                    }
+
+                    try {
+                        const btnOriginalText = downloadBtn.innerHTML;
+                        downloadBtn.innerText = 'Memproses...';
+                        
+                        const response = await fetch(CONFIG.API_BASE_URL + '/api/video/' + videoId);
+                        if (!response.ok) throw new Error('Gagal mengambil data video');
+                        
+                        const json = await response.json();
+                        const videoData = json.data;
+                        
+                        let downloadUrl = '';
+                        if (videoData.storage_type === 'bunny') {
+                            downloadUrl = 'https://' + CONFIG.BUNNY_PULL_ZONE_URL + '/' + (videoData.filename || videoData.slug + '.mp4');
+                        } else if (videoData.storage_type === 'r2') {
+                            downloadUrl = 'https://' + CONFIG.R2_PUBLIC_URL + '/' + videoData.slug + '.mp4';
+                        } else {
+                            downloadUrl = 'https://vz-403.b-cdn.net/' + videoData.bunny_id + '/play_720p.mp4';
+                        }
+
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.target = '_blank';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        
+                        downloadBtn.innerHTML = btnOriginalText;
+                    } catch (error) {
+                        console.error(error);
+                        alert('Gagal mengunduh video.');
+                        downloadBtn.innerHTML = 'Download';
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 
 </html>
